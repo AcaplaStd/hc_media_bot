@@ -1,17 +1,13 @@
 import hashlib
 import logging
-import os
 from threading import Timer
 from urllib.parse import urlparse, urlunparse
 
 import feedparser
-import requests
+from telegram import Bot, ParseMode
 from telegram.ext import Updater, CommandHandler
 
-TOKEN = os.environ["TOKEN"]
-ADD_FEED = os.environ["ADD_FEED"]
-
-bot = None
+from secure import ADD_FEED, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
 
 f = open("fu.txt", "r")
 s = f.read()
@@ -120,21 +116,17 @@ def format_entry(parser_number, entry_number):
     return res
 
 
-def send_entry(chat_id, parser_number, entry_number):
-    r = requests.post("https://api.telegram.org/bot" + TOKEN + "/sendMessage",
-                      {"chat_id": chat_id, "text": format_entry(parser_number, entry_number), "parse_mode": "Markdown"})
-
-
-def tick():
+def tick(bot: Bot):
     for parser_number in range(0, len(parsers)):
         parsers[parser_number] = feedparser.parse(urls[parser_number])
         parser = parsers[parser_number]
         for entry_number in range(len(parser.entries)):
             entry = parser["entries"][entry_number]
             if check(entry):
-                for id in chats:
-                    send_entry(id, parser_number, entry_number)
-    t = Timer(10.0, tick)
+                for chat_id in chats:
+                    bot.send_message(chat_id, text=format_entry(parser_number, entry_number),
+                                     parse_mode=ParseMode.MARKDOWN)
+    t = Timer(10, tick, [bot])
     t.start()
 
 
@@ -165,28 +157,28 @@ def add_chat_id(update, context):
     if len(context.args) == 0:
         update.message.reply_text("Send me chat id")
     else:
-        try:
-            if int(context.args[0]) // -1000000000000 != 1:
-                raise Exception("Not an id")
-            chats.append(int(context.args[0]))
-            print(context.args[0], file=fc)
-            fc.flush()
-            update.message.reply_text("Done")
-        except:
-            update.message.reply_text("It seems, that this isn't an id")
+        chats.append(int(context.args[0]))
+        print(context.args[0], file=fc)
+        fc.flush()
+        update.message.reply_text("Done")
 
 
 def main():
-    global bot
-    updater = Updater(TOKEN, use_context=True, request_kwargs={'read_timeout': 120, 'connect_timeout': 60})
+    updater = Updater(TOKEN, use_context=True, request_kwargs={
+        'proxy_url': PROXY_URL,
+        'urllib3_proxy_kwargs': {
+            'username': PROXY_USERNAME,
+            'password': PROXY_PASSWORD,
+        }
+    })
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
     dp.add_handler(CommandHandler(ADD_FEED, add_feed))
     dp.add_handler(CommandHandler("add_chat_id", add_chat_id))
-    bot = updater.bot
     updater.start_polling()
-    tick()
+    tick(updater.bot)
     updater.idle()
 
 
-main()
+if __name__ == '__main__':
+    main()
