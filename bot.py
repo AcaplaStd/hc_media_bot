@@ -1,19 +1,15 @@
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
-from threading import Timer
-
-import os
+import hashlib
 import logging
-import requests
+import os
+from threading import Timer
+from urllib.parse import urlparse, urlunparse
 
 import feedparser
+import requests
+from telegram.ext import Updater, CommandHandler
 
 TOKEN = os.environ["TOKEN"]
 ADD_FEED = os.environ["ADD_FEED"]
-
-from urllib.parse import urlparse, urlunparse
-
-import base64
-import hashlib
 
 bot = None
 
@@ -29,8 +25,7 @@ s = f.read()
 chats = [int(i) for i in s.split()]
 f.close()
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-                            level=logging.INFO)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 logger = logging.getLogger(__name__)
 
@@ -45,10 +40,12 @@ fu = open("fu.txt", "a")
 fc = open("fc.txt", "a")
 fh = open("fh.txt", "a")
 
+
 def remove_get_data(link):
     res = list(urlparse(link))
     res[4] = ""
     return urlunparse(res)
+
 
 def check(entry):
     s = remove_get_data(entry["link"])
@@ -62,14 +59,16 @@ def check(entry):
     fh.flush()
     return True
 
+
 def replacement(char):
-    if 8210 <= ord(char) <= 8213 or 11834 <= ord(char) <= 11835 or ord(char) == 45 or ord(char) == 32: # тире))
+    if 8210 <= ord(char) <= 8213 or 11834 <= ord(char) <= 11835 or ord(char) == 45 or ord(char) == 32:  # тире))
         return "_"
-    if char == "!" or char == "?" or char == "." or char == "&" or char == "+" or char == "(" or char == ")": # special
+    if char == "!" or char == "?" or char == "." or char == "&" or char == "+" or char == "(" or char == ")":  # special
         return ""
     if char == "#":
         return "sharp"
     return char.lower()
+
 
 def escape(string):
     res = ""
@@ -77,7 +76,8 @@ def escape(string):
         if symbol in forbidden_symbols:
             res += "\\"
         res += symbol
-    return res 
+    return res
+
 
 def to_hash_tag(string):
     res = ""
@@ -93,6 +93,7 @@ def to_hash_tag(string):
             final_result += "_"
     return final_result
 
+
 def get_categories(entry):
     if "tags" in entry.keys():
         lowercase_categories = map(lambda tag: tag.get("term", "").lower(), entry["tags"])
@@ -106,6 +107,7 @@ def get_categories(entry):
     else:
         return ""
 
+
 def format_entry(parser_number, entry_number):
     parser = parsers[parser_number]
     feed = parser["feed"]
@@ -117,8 +119,11 @@ def format_entry(parser_number, entry_number):
     res = escape(feed_title) + "*" + escape(entry_title) + "*" + escape(categories) + escape(entry_link)
     return res
 
+
 def send_entry(chat_id, parser_number, entry_number):
-    r = requests.post("https://api.telegram.org/bot" + TOKEN + "/sendMessage", {"chat_id": chat_id, "text": format_entry(parser_number, entry_number), "parse_mode": "Markdown"})
+    r = requests.post("https://api.telegram.org/bot" + TOKEN + "/sendMessage",
+                      {"chat_id": chat_id, "text": format_entry(parser_number, entry_number), "parse_mode": "Markdown"})
+
 
 def tick():
     for parser_number in range(0, len(parsers)):
@@ -132,18 +137,21 @@ def tick():
     t = Timer(10.0, tick)
     t.start()
 
+
 def error(update, context):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
+
 
 def start(update, context):
     update.message.reply_text("Hi!")
 
+
 def add_feed(update, context):
-    if (len(context.args) == 0):
+    if len(context.args) == 0:
         update.message.reply_text("Send me feed URL")
     else:
         name = context.args[0]
-        if (urlparse(name)):
+        if urlparse(name):
             parsers.append(feedparser.parse(name))
             urls.append(name)
             print(name, file=fu)
@@ -152,8 +160,9 @@ def add_feed(update, context):
         else:
             print("Not a URL. Try again.")
 
+
 def add_chat_id(update, context):
-    if (len(context.args) == 0):
+    if len(context.args) == 0:
         update.message.reply_text("Send me chat id")
     else:
         try:
@@ -166,6 +175,7 @@ def add_chat_id(update, context):
         except:
             update.message.reply_text("It seems, that this isn't an id")
 
+
 def main():
     global bot
     updater = Updater(TOKEN, use_context=True, request_kwargs={'read_timeout': 120, 'connect_timeout': 60})
@@ -177,5 +187,6 @@ def main():
     updater.start_polling()
     tick()
     updater.idle()
+
 
 main()
