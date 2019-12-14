@@ -18,13 +18,15 @@ import hashlib
 bot = None
 
 f = open("fu.txt", "r")
-urls = [i for i in f.read().split()]
+s = f.read()
+urls = s.split()
 f.close()
 
 parsers = [feedparser.parse(url) for url in urls]
 
 f = open("fc.txt", "r")
-chats = [i for i in f.read().split()]
+s = f.read()
+chats = [int(i) for i in s.split()]
 f.close()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -33,7 +35,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 f = open("fh.txt", "r")
-hashes = [i for i in f.read().split()]
+s = f.read()
+hashes = s.split()
 f.close()
 
 fu = open("fu.txt", "a")
@@ -47,13 +50,13 @@ def remove_get_data(link):
 
 def check(entry):
     s = remove_get_data(entry["link"])
-    d = hashlib.sha1(s.encode("utf-8")).digest()
-    prefix = base64.b64encode(d[:10])
+    d = hashlib.sha1(s.encode("utf-8")).hexdigest()
+    hsh = int(d[:10], 16)
     for i in range(len(hashes) - 1, -1, -1):
-        if hashes[i] == prefix:
+        if hashes[i] == hsh:
             return False
-    hashes.append(prefix)
-    print(prefix, file=fh)
+    hashes.append(hsh)
+    print(hsh, file=fh)
     fh.flush()
     return True
 
