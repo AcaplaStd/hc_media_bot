@@ -63,25 +63,41 @@ def check(entry):
 def replacement(char):
     if 8210 <= ord(char) <= 8213 or 11834 <= ord(char) <= 11835 or ord(char) == 45 or ord(char) == 32: # тире))
         return "_"
-    if char == "!" or char == "?" or char == "." or char == "&" or char == "+": # special
+    if char == "!" or char == "?" or char == "." or char == "&" or char == "+" or char == "(" or char == ")": # special
         return ""
     if char == "#":
         return "sharp"
     return char.lower()
 
 def to_hash_tag(string):
-    res = "#"
+    res = ""
     if string[0].isdigit():
         res += "_"
     for char in string:
         res += replacement(char)
-    return res
+    final_result = "#"
+    for char in res:
+        if char != "_" or final_result[-1] != "_":
+            final_result += char
+    return final_result
+
+def get_categories(entry):
+    if "tags" in entry.keys():
+        lowercase_categories = map(lambda tag: tag.get("term", "").lower(), entry["tags"])
+        unique_lowercase_categories = list(set(lowercase_categories))
+        unique_lowercase_hashtags = map(to_hash_tag, unique_lowercase_categories)
+        result_string = " ".join(unique_lowercase_hashtags)
+        if len(result_string):
+            result_string += "\n"
+        return result_string
+    else:
+        return ""
 
 def format_entry(parser_number, entry_number):
     parser = parsers[parser_number]
     feed = parser["feed"]
     entry = parser["entries"][entry_number]
-    categories = " ".join(map(to_hash_tag, list(set(map(lambda tag: tag.get("term", "").lower(), entry["tags"]))))) + "\n" if "tags" in entry.keys() else ""
+    categories = get_categories(entry)
     feed_title = "[" + feed["title"] + "]\n" if "title" in feed.keys() else ""
     entry_title = entry["title"] + "\n"
     entry_link = entry["link"]
