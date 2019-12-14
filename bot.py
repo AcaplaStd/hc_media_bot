@@ -39,6 +39,8 @@ s = f.read()
 hashes = [int(i) for i in s.split()]
 f.close()
 
+forbidden_symbols = ["\\", "*", "_", "[", "(" "`"]
+
 fu = open("fu.txt", "a")
 fc = open("fc.txt", "a")
 fh = open("fh.txt", "a")
@@ -69,6 +71,14 @@ def replacement(char):
         return "sharp"
     return char.lower()
 
+def escape(string):
+    res = ""
+    for symbol in string:
+        if symbol in forbidden_symbols:
+            res += "\\"
+        res += symbol
+    return res 
+
 def to_hash_tag(string):
     res = ""
     if string[0].isdigit():
@@ -77,15 +87,18 @@ def to_hash_tag(string):
         res += replacement(char)
     final_result = "#"
     for char in res:
-        if char != "_" or final_result[-1] != "_":
+        if char != "_":
             final_result += char
+        elif final_result[-1] != "_":
+            final_result += "_"
     return final_result
 
 def get_categories(entry):
     if "tags" in entry.keys():
         lowercase_categories = map(lambda tag: tag.get("term", "").lower(), entry["tags"])
         unique_lowercase_categories = list(set(lowercase_categories))
-        unique_lowercase_hashtags = map(to_hash_tag, unique_lowercase_categories)
+        unique_lowercase_hashtags = list(map(to_hash_tag, unique_lowercase_categories))
+        unique_lowercase_hashtags.sort()
         result_string = " ".join(unique_lowercase_hashtags)
         if len(result_string):
             result_string += "\n"
@@ -100,11 +113,12 @@ def format_entry(parser_number, entry_number):
     categories = get_categories(entry)
     feed_title = "[" + feed["title"] + "]\n" if "title" in feed.keys() else ""
     entry_title = entry["title"] + "\n"
-    entry_link = entry["link"]
-    return (feed_title + categories + entry_title + entry_link)
+    entry_link = entry["link"] + "\n"
+    res = escape(feed_title) + "*" + escape(entry_title) + "*" + escape(categories) + escape(entry_link)
+    return res
 
 def send_entry(chat_id, parser_number, entry_number):
-    r = requests.post("https://api.telegram.org/bot" + TOKEN + "/sendMessage", {"chat_id": chat_id, "text": format_entry(parser_number, entry_number)})
+    r = requests.post("https://api.telegram.org/bot" + TOKEN + "/sendMessage", {"chat_id": chat_id, "text": format_entry(parser_number, entry_number), "parse_mode": "Markdown"})
 
 def tick():
     for parser_number in range(0, len(parsers)):
@@ -156,19 +170,12 @@ def main():
     global bot
     updater = Updater(TOKEN, use_context=True, request_kwargs={'read_timeout': 120, 'connect_timeout': 60})
     dp = updater.dispatcher
-
     dp.add_handler(CommandHandler("start", start))
-
     dp.add_handler(CommandHandler(ADD_FEED, add_feed))
-
     dp.add_handler(CommandHandler("add_chat_id", add_chat_id))
-    
     bot = updater.bot
-
     updater.start_polling()
-    
     tick()
-
     updater.idle()
 
 main()
