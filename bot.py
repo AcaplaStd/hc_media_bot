@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 f = open("fh.txt", "r")
 s = f.read()
-hashes = s.split()
+hashes = [int(i) for i in s.split()]
 f.close()
 
 fu = open("fu.txt", "a")
@@ -67,7 +67,7 @@ def replacement(char):
         return ""
     if char == "#":
         return "sharp"
-    return char
+    return char.lower()
 
 def to_hash_tag(string):
     res = "#"
@@ -81,7 +81,7 @@ def format_entry(parser_number, entry_number):
     parser = parsers[parser_number]
     feed = parser["feed"]
     entry = parser["entries"][entry_number]
-    categories = " ".join(map(to_hash_tag, list(set(map(lambda tag: tag.get("term", ""), entry["tags"]))))) + "\n" if "tags" in entry.keys() else ""
+    categories = " ".join(map(to_hash_tag, list(set(map(lambda tag: tag.get("term", "").lower(), entry["tags"]))))) + "\n" if "tags" in entry.keys() else ""
     feed_title = "[" + feed["title"] + "]\n" if "title" in feed.keys() else ""
     entry_title = entry["title"] + "\n"
     entry_link = entry["link"]
