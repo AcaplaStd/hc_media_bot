@@ -7,7 +7,7 @@ import feedparser
 from telegram import Bot, ParseMode
 from telegram.ext import Updater, CommandHandler
 
-from secure import ADD_FEED, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
+from secure import ADD_FEED_COMMAND, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
 
 f = open("fu.txt", "r")
 s = f.read()
@@ -155,12 +155,15 @@ def add_feed(update, context):
 
 def add_chat_id(update, context):
     if len(context.args) == 0:
-        update.message.reply_text("Send me chat id")
+        update.message.reply_text(f'Usage: /{ADD_FEED_COMMAND} <chat_id>')
     else:
-        chats.append(int(context.args[0]))
-        print(context.args[0], file=fc)
-        fc.flush()
-        update.message.reply_text("Done")
+        try:
+            chats.append(int(context.args[0]))
+            print(context.args[0], file=fc)
+            fc.flush()
+            update.message.reply_text("Done")
+        except ValueError:
+            update.message.reply_text(f'Usage: /{ADD_FEED_COMMAND} <chat_id>')
 
 
 def main():
@@ -173,7 +176,7 @@ def main():
     })
     dp = updater.dispatcher
     dp.add_handler(CommandHandler("start", start))
-    dp.add_handler(CommandHandler(ADD_FEED, add_feed))
+    dp.add_handler(CommandHandler(ADD_FEED_COMMAND, add_feed))
     dp.add_handler(CommandHandler("add_chat_id", add_chat_id))
     updater.start_polling()
     tick(updater.bot)
