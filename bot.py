@@ -113,7 +113,7 @@ def format_entry(parser_number, entry_number):
     categories = get_categories(entry)
     feed_title = "[" + feed["title"] + "]\n" if "title" in feed.keys() else ""
     entry_title = entry["title"] + "\n"
-    entry_link = entry["link"] + "\n"
+    entry_link = "\n" + entry["link"] + "\n"
     res = escape(feed_title) + "*" + escape(entry_title) + "*" + escape(categories) + escape(entry_link)
     return res
 
