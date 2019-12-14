@@ -4,11 +4,12 @@ from threading import Timer
 from urllib.parse import urlparse, urlunparse
 
 import feedparser
-from telegram import Bot, ParseMode
-from telegram.ext import Updater, CommandHandler
+from telegram import Bot, ParseMode, Update
+from telegram.ext import Updater, CommandHandler, CallbackContext
 
 from secure import ADD_FEED_COMMAND, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
 
+# TODO: refator and add database
 f = open("fu.txt", "r")
 s = f.read()
 urls = s.split()
@@ -22,7 +23,6 @@ chats = [int(i) for i in s.split()]
 f.close()
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
 logger = logging.getLogger(__name__)
 
 f = open("fh.txt", "r")
@@ -43,6 +43,7 @@ def remove_get_data(link):
     return urlunparse(res)
 
 
+# TODO: Разобраться
 def check(entry):
     s = remove_get_data(entry["link"])
     d = hashlib.sha1(s.encode("utf-8")).hexdigest()
@@ -56,10 +57,11 @@ def check(entry):
     return True
 
 
+# TODO: Refactor next 3 functions
 def replacement(char):
-    if 8210 <= ord(char) <= 8213 or 11834 <= ord(char) <= 11835 or ord(char) == 45 or ord(char) == 32:  # тире))
+    if ord(char) in [8210, 8211, 8212, 8213, 11834, 11835, 45, 32]:  # dash types
         return "_"
-    if char == "!" or char == "?" or char == "." or char == "&" or char == "+" or char == "(" or char == ")":  # special
+    if char in ['!', '?', '.', '&', '+', '(', ')']:  # special chars
         return ""
     if char == "#":
         return "sharp"
@@ -104,6 +106,7 @@ def get_categories(entry):
         return ""
 
 
+# TODO: html
 def format_entry(parser_number, entry_number):
     parser = parsers[parser_number]
     feed = parser["feed"]
@@ -116,6 +119,7 @@ def format_entry(parser_number, entry_number):
     return res
 
 
+# TODO: придумать способ получше, чем таймер. Мне кажется, что таймер не оч. Но хз
 def tick(bot: Bot):
     for parser_number in range(0, len(parsers)):
         parsers[parser_number] = feedparser.parse(urls[parser_number])
@@ -130,15 +134,15 @@ def tick(bot: Bot):
     t.start()
 
 
-def error(update, context):
+def error(update: Update, context: CallbackContext):
     logger.warning('Update "%s" caused error "%s"', update, context.error)
 
 
-def start(update, context):
+def start(update: Update, context: CallbackContext):
     update.message.reply_text("Hi!")
 
 
-def add_feed(update, context):
+def add_feed(update: Update, context: CallbackContext):
     if len(context.args) == 0:
         update.message.reply_text("Send me feed URL")
     else:
@@ -153,7 +157,7 @@ def add_feed(update, context):
             print("Not a URL. Try again.")
 
 
-def add_chat_id(update, context):
+def add_chat_id(update: Update, context: CallbackContext):
     if len(context.args) == 0:
         update.message.reply_text(f'Usage: /{ADD_FEED_COMMAND} <chat_id>')
     else:
