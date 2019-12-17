@@ -3,40 +3,46 @@ import logging
 from threading import Timer
 from urllib.parse import urlparse, urlunparse
 from time import sleep
-
+import sys
 import feedparser
 from telegram import Bot, ParseMode, Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
+from telegram.utils.helpers import escape_markdown as escape
 
 from secure import ADD_FEED_COMMAND, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
 
 # TODO: refator and add database
+print("Loading feeds...", end=" ")
+sys.stdout.flush()
 f = open("fu.txt", "r")
 s = f.read()
 urls = s.split()
 f.close()
+print("Done")
 
+print("Parsing feeds...", end=" ")
+sys.stdout.flush()
 parsers = [feedparser.parse(url) for url in urls]
-
 f = open("fc.txt", "r")
 s = f.read()
 chats = [int(i) for i in s.split()]
 f.close()
+print("Done")
 
-logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-logger = logging.getLogger(__name__)
-
+print("Loading hashes...", end=" ")
+sys.stdout.flush()
 f = open("fh.txt", "r")
 s = f.read()
 hashes = [int(i) for i in s.split()]
 f.close()
-
-forbidden_symbols = ["\\", "*", "_", "[", "(" "`"]
+print("Done")
 
 fu = open("fu.txt", "a")
 fc = open("fc.txt", "a")
 fh = open("fh.txt", "a")
 
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def remove_get_data(link):
     res = list(urlparse(link))
@@ -45,40 +51,37 @@ def remove_get_data(link):
 
 
 # TODO: Разобраться
-def check(entry):
+def filter(entry):
     s = remove_get_data(entry["link"])
     d = hashlib.sha1(s.encode("utf-8")).hexdigest()
     hsh = int(d[:10], 16)
     for i in range(len(hashes) - 1, -1, -1):
         if hashes[i] == hsh:
-            return False
+            return -i
     hashes.append(hsh)
     print(hsh, file=fh)
     fh.flush()
-    return True
+    return len(hashes)
 
 
 # TODO: Refactor next 3 functions
 def replacement(char):
     if ord(char) in [8210, 8211, 8212, 8213, 11834, 11835, 45, 32]:  # dash types
         return "_"
-    if char in ['!', '?', '.', '&', '+', '(', ')']:  # special chars
+    if char in ['!', '?', '(', ')']:  # special chars
         return ""
+    if char in ['+', '&']:
+        return "_"
     if char == "#":
         return "sharp"
+    if char == ".":
+        return "dot"
     return char.lower()
 
 
-def escape(string):
-    res = ""
-    for symbol in string:
-        if symbol in forbidden_symbols:
-            res += "\\"
-        res += symbol
-    return res
-
-
 def to_hash_tag(string):
+    string = string.strip()
+    string = string.strip(".,?!")
     res = ""
     if string[0].isdigit():
         res += "_"
@@ -115,8 +118,8 @@ def format_entry(parser_number, entry_number):
     categories = get_categories(entry)
     feed_title = "[" + feed["title"] + "]\n" if "title" in feed.keys() else ""
     entry_title = entry["title"] + "\n"
-    entry_link = "\n" + entry["link"] + "\n"
-    res = escape(feed_title) + "*" + escape(entry_title) + "*" + escape(categories) + escape(entry_link)
+    entry_link = entry["link"]
+    res = escape(feed_title) + "*" + escape(entry_title) + "*" + escape(categories + "\n") + "[Читать]" + "(" + escape(entry_link) + ")"
     return res
 
 
@@ -125,13 +128,13 @@ def tick(bot: Bot):
     for parser_number in range(0, len(parsers)):
         parsers[parser_number] = feedparser.parse(urls[parser_number])
         parser = parsers[parser_number]
-        for entry_number in range(len(parser.entries)):
+        for entry_number in range(len(parser.entries) - 1, -1, -1):
             entry = parser["entries"][entry_number]
-            if check(entry):
+            if filter(entry) > 0:
                 for chat_id in chats:
-                    bot.send_message(chat_id, text=format_entry(parser_number, entry_number),
-                                     parse_mode=ParseMode.MARKDOWN, timeout=60)
-                    sleep(0.2)
+                        bot.send_message(chat_id, text=format_entry(parser_number, entry_number),
+                                         parse_mode=ParseMode.MARKDOWN, timeout=60)
+                        sleep(0.2)
     t = Timer(10, tick, [bot])
     t.start()
 
@@ -185,9 +188,10 @@ def main():
     dp.add_handler(CommandHandler(ADD_FEED_COMMAND, add_feed))
     dp.add_handler(CommandHandler("add_chat_id", add_chat_id))
     updater.start_polling()
+    print("Load complete.")
     tick(updater.bot)
     updater.idle()
 
-
+print("Files loaded, loading network...")
 if __name__ == '__main__':
     main()
