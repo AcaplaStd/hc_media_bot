@@ -20,9 +20,14 @@ urls = s.split()
 f.close()
 print("Done")
 
-print("Parsing feeds...", end=" ")
+print("Parsing feeds", end=" ")
 sys.stdout.flush()
-parsers = [feedparser.parse(url) for url in urls]
+parsers = []
+for url in urls:
+    parsers.append(feedparser.parse(url))
+    print(".", end="")
+    sys.stdout.flush()
+print(" ", end="")
 f = open("fc.txt", "r")
 s = f.read()
 chats = [int(i) for i in s.split()]
@@ -68,9 +73,9 @@ def filter(entry):
 def replacement(char):
     if ord(char) in [8210, 8211, 8212, 8213, 11834, 11835, 45, 32]:  # dash types
         return "_"
-    if char in ['!', '?', '(', ')']:  # special chars
+    if char in ['!', '?', '(', ')', '\'', '"', '«', '»']:  # special chars
         return ""
-    if char in ['+', '&']:
+    if char == '&':
         return "_"
     if char == "#":
         return "sharp"
@@ -87,6 +92,7 @@ def to_hash_tag(string):
         res += "_"
     for char in string:
         res += replacement(char)
+    res = res.replace("c++", "cpp")
     final_result = "#"
     for char in res:
         if char != "_":
