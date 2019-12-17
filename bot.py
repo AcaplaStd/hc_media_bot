@@ -2,6 +2,7 @@ import hashlib
 import logging
 from threading import Timer
 from urllib.parse import urlparse, urlunparse
+from time import sleep
 
 import feedparser
 from telegram import Bot, ParseMode, Update
@@ -129,7 +130,8 @@ def tick(bot: Bot):
             if check(entry):
                 for chat_id in chats:
                     bot.send_message(chat_id, text=format_entry(parser_number, entry_number),
-                                     parse_mode=ParseMode.MARKDOWN)
+                                     parse_mode=ParseMode.MARKDOWN, timeout=60)
+                    sleep(0.2)
     t = Timer(10, tick, [bot])
     t.start()
 
