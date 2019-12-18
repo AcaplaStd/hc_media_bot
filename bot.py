@@ -7,7 +7,7 @@ import sys
 import feedparser
 from telegram import Bot, ParseMode, Update
 from telegram.ext import Updater, CommandHandler, CallbackContext
-from telegram.utils.helpers import escape_markdown as escape
+from html import escape
 
 from secure import ADD_FEED_COMMAND, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
 
@@ -122,10 +122,10 @@ def format_entry(parser_number, entry_number):
     feed = parser["feed"]
     entry = parser["entries"][entry_number]
     categories = get_categories(entry)
-    feed_title = "[" + feed["title"] + "]\n" if "title" in feed.keys() else ""
-    entry_title = entry["title"] + "\n"
+    feed_title = "[" + feed["title"] + "]" if "title" in feed.keys() else ""
+    entry_title = entry["title"]
     entry_link = entry["link"]
-    res = escape(feed_title) + "*" + escape(entry_title) + "*" + escape(categories + "\n") + "[Читать]" + "(" + escape(entry_link) + ")"
+    res = escape(feed_title + "\n") + "<b>" + escape(entry_title) + "</b>" + escape("\n" + categories + "\n") + "<a href=\"" + entry_link + "\">Читать</a>"
     return res
 
 
@@ -139,7 +139,7 @@ def tick(bot: Bot):
             if filter(entry) > 0:
                 for chat_id in chats:
                         bot.send_message(chat_id, text=format_entry(parser_number, entry_number),
-                                         parse_mode=ParseMode.MARKDOWN, timeout=60)
+                                         parse_mode=ParseMode.HTML, timeout=60)
                         sleep(0.2)
     t = Timer(10, tick, [bot])
     t.start()
