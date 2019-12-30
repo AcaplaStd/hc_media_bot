@@ -2,3 +2,6 @@ python-telegram-bot
 pysocks
 requests
 feedparser
+sqlalchemy
+psycopg2-binary
+alembic
