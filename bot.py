@@ -1,16 +1,15 @@
-import hashlib
 import logging
-from threading import Timer
-from urllib.parse import urlparse, urlunparse
-from time import sleep
-import sys
-import feedparser
-from telegram import Bot, ParseMode, Update
-from telegram.ext import Updater, CommandHandler, CallbackContext
 from html import escape
-import database as db
+from threading import Timer
+from time import sleep
 
-from secure import ADD_FEED_COMMAND, TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD, ADD_CHAT_ID_COMMAND
+import feedparser
+from telegram import Bot, ParseMode
+from telegram.ext import Updater, CommandHandler, CallbackQueryHandler, MessageHandler, Filters
+
+from bot_parts.admin import *
+from bot_parts.functions import *
+from secure import TOKEN, PROXY_URL, PROXY_USERNAME, PROXY_PASSWORD
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -90,55 +89,66 @@ def tick(bot: Bot):
                                      parse_mode=ParseMode.HTML, timeout=60)
                     sleep(0.1)
                 session.add(db.Entry(title=feed_entry.title, link=feed_entry.link))
-    session.commit()
-    t = Timer(10, tick, [bot])
-    t.start()
+                session.commit()
+    session.close()
+    if updater.running:
+        t = Timer(10, tick, [bot])
+        t.start()
 
 
 def error(update: Update, context: CallbackContext):
     logger.warning(f'Update {update} caused error {context.error}')
 
 
+@autocreate_user
 def start(update: Update, context: CallbackContext):
     update.message.reply_text('Hi!')
 
 
-def add_feed(update: Update, context: CallbackContext):
-    if len(context.args) == 0:
-        update.message.reply_text(f'Usage: /{ADD_FEED_COMMAND} <chat_id>')
+@chat_admin_required
+def add_current_chat(update: Update, context: CallbackContext):
+    session = db.Session()
+    if not session.query(db.Chat).filter(db.Chat.id == str(update.effective_chat.id)).first():
+        session.add(db.Chat(id=str(update.message.chat.id), name=update.message.chat.title))
+        session.commit()
+        session.close()
+        update.message.reply_text('Done')
     else:
-        url = context.args[0]
-        if urlparse(url):
-            session = db.Session()
-            if session.query(db.Feed).filter(db.Feed.link == url).first() is None:
-                session.add(db.Feed(link=url))
-                session.commit()
-                update.message.reply_text('Done')
-            else:
-                update.message.reply_text('Already added')
-        else:
-            print('Not a URL. Try again')
+        update.message.reply_text('Already added')
 
 
-def add_chat_id(update: Update, context: CallbackContext):
-    if len(context.args) == 0:
-        update.message.reply_text(f'Usage: /{ADD_CHAT_ID_COMMAND} <chat_id>')
+@chat_admin_required
+def remove_current_chat(update: Update, context: CallbackContext):
+    session = db.Session()
+    chat = session.query(db.Chat).filter(db.Chat.id == str(update.effective_chat.id)).first()
+    if chat:
+        session.delete(chat)
+        session.commit()
+        session.close()
+        update.message.reply_text('Done')
     else:
-        try:
-            chat_id = int(context.args[0])
-        except ValueError:
-            update.message.reply_text(f'Usage: /{ADD_CHAT_ID_COMMAND} <chat_id>')
-            return
-        session = db.Session()
-        if session.query(db.Chat).filter(db.Chat.id == chat_id) is not None:
-            session.add(db.Chat(id=chat_id))
-            session.commit()
-            update.message.reply_text('Done')
-        else:
-            update.message.reply_text('Already added')
+        update.message.reply_text('Chat not added')
+
+
+@autocreate_user
+def callback(update: Update, context: CallbackContext):
+    admin_process_callback_query(update, context)
+
+    context.bot.answer_callback_query(update.callback_query.id)
+
+
+@autocreate_user
+def messages(update: Update, context: CallbackContext):
+    session = db.Session()
+    user = session.query(db.User).filter(db.User.id == update.effective_user.id).first()
+    session.close()
+    if user.tg_operation == '':
+        return
+    admin_process_messages(update, context)
 
 
 def main():
+    global updater
     updater = Updater(TOKEN, use_context=True, request_kwargs={
         'proxy_url': PROXY_URL,
         'urllib3_proxy_kwargs': {
@@ -148,8 +158,17 @@ def main():
     })
     dp = updater.dispatcher
     dp.add_handler(CommandHandler('start', start))
-    dp.add_handler(CommandHandler(ADD_FEED_COMMAND, add_feed))
-    dp.add_handler(CommandHandler(ADD_CHAT_ID_COMMAND, add_chat_id))
+    dp.add_handler(CommandHandler('add_current_chat', add_current_chat))
+    dp.add_handler(CommandHandler('rm_current_chat', remove_current_chat))
+
+    # Admin
+    dp.add_handler(CommandHandler('feeds', list_feeds))
+    dp.add_handler(CommandHandler('chats', list_chats))
+    dp.add_handler(CommandHandler('admins', list_admins))
+
+    dp.add_handler(CallbackQueryHandler(callback))
+    dp.add_handler(MessageHandler(Filters.text, messages))
+
     updater.start_polling()
     print('Load complete.')
     tick(updater.bot)

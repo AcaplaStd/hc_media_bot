@@ -1,7 +1,8 @@
 import sqlalchemy as db
 from sqlalchemy import *
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship, sessionmaker
+from sqlalchemy.orm import sessionmaker
+
 from secure import DB_URI
 
 Base = declarative_base()
@@ -28,4 +29,15 @@ class Feed(Base):
 
 class Chat(Base):
     __tablename__ = 'chat'
+    id = Column(String, primary_key=True, unique=True)
+    name = Column(String)
+
+
+class User(Base):
+    __tablename__ = 'user'
     id = Column(Integer, primary_key=True, unique=True)
+    is_admin = Column(Boolean)
+    tg_operation = Column(String)
+
+
+Base.metadata.create_all(engine)
