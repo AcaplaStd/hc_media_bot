@@ -38,6 +38,3 @@ class User(Base):
     id = Column(Integer, primary_key=True, unique=True)
     is_admin = Column(Boolean)
     tg_operation = Column(String)
-
-
-Base.metadata.create_all(engine)
