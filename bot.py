@@ -130,8 +130,8 @@ def add_chat_id(update: Update, context: CallbackContext):
             update.message.reply_text(f'Usage: /{ADD_CHAT_ID_COMMAND} <chat_id>')
             return
         session = db.Session()
-        if session.query(db.Chat).get(chat_id) is None:
-            session.add(db.Chat(chat_id))
+        if session.query(db.Chat).filter(db.Chat.id == chat_id) is not None:
+            session.add(db.Chat(id=chat_id))
             session.commit()
             update.message.reply_text('Done')
         else:
