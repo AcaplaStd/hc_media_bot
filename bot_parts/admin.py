@@ -106,7 +106,7 @@ def admin_process_callback_query(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=user.id, text="Enter new admin id:")
         context.bot.delete_message(chat_id=user.id, message_id=query.message.message_id)
     elif operation == 'rmchat':
-        session.delete(session.query(db.Chat).get(int(param)).first())
+        session.delete(session.query(db.Chat).get(str(param)).first())
         session.commit()
         context.bot.edit_message_reply_markup(user.id, update.effective_message.message_id,
                                               reply_markup=get_chats_keyboard())
