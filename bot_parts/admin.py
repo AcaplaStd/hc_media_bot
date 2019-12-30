@@ -11,7 +11,7 @@ def add_chat(update: Update, context: CallbackContext, session: db.Session):
     except ValueError:
         update.message.reply_text('Int is required')
         return False
-    if not session.query(db.Chat).filter(db.Chat.id == str(chat_id)):
+    if not session.query(db.Chat).filter(db.Chat.id == str(chat_id)).first():
         try:
             context.bot.get_chat(chat_id)
         except TelegramError:
