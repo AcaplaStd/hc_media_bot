@@ -96,7 +96,7 @@ def admin_process_callback_query(update: Update, context: CallbackContext):
     operation = query.data.split('_', 1)[0]
     param = query.data.split('_', 1)[1] if len(query.data.split('_', 1)) > 1 else ''
     if operation == 'rmadm':
-        edit_user = session.query(db.User).get(int(param)).first()
+        edit_user = session.query(db.User).get(int(param))
         edit_user.is_admin = False
         session.commit()
         context.bot.edit_message_reply_markup(user.id, update.effective_message.message_id,
@@ -106,7 +106,7 @@ def admin_process_callback_query(update: Update, context: CallbackContext):
         context.bot.send_message(chat_id=user.id, text="Enter new admin id:")
         context.bot.delete_message(chat_id=user.id, message_id=query.message.message_id)
     elif operation == 'rmchat':
-        session.delete(session.query(db.Chat).get(str(param)).first())
+        session.delete(session.query(db.Chat).get(str(param)))
         session.commit()
         context.bot.edit_message_reply_markup(user.id, update.effective_message.message_id,
                                               reply_markup=get_chats_keyboard())
